@@ -1,0 +1,1570 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+\documentclass[
+  11pt,
+  a4paper,
+]{ctexart}
+\usepackage{xcolor}
+\usepackage[top=2.2cm,bottom=2.2cm,left=2.5cm,right=2.5cm]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{amsmath,amssymb,mathtools}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{booktabs,longtable,array}
+\usepackage{microtype}
+\definecolor{BookNavy}{HTML}{173F4F}
+\definecolor{BookTeal}{HTML}{2F7664}
+\definecolor{BookMuted}{HTML}{687B78}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.35em}
+\linespread{1.25}
+\setlist{itemsep=0.25em,topsep=0.4em,leftmargin=2.2em}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[R]{\small\color{BookMuted}多臂老虎机与重尾在线学习 · 数学学习笔记}
+\fancyfoot[C]{\small\color{BookMuted}--\ \thepage\ --}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+\setlength{\headheight}{15pt}
+\ctexset{
+  section={format=\Large\bfseries\color{BookNavy},beforeskip=2.2ex,afterskip=1.2ex},
+  subsection={format=\large\bfseries\color{BookTeal},beforeskip=1.8ex,afterskip=0.8ex},
+  subsubsection={format=\normalsize\bfseries\color{BookNavy},beforeskip=1.3ex,afterskip=0.5ex}
+}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={多臂老虎机与重尾在线学习},
+  colorlinks=true,
+  linkcolor={BookTeal},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={BookTeal},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{多臂老虎机与重尾在线学习}
+\usepackage{etoolbox}
+\makeatletter
+\providecommand{\subtitle}[1]{% add subtitle to \maketitle
+  \apptocmd{\@title}{\par {\large #1 \par}}{}{}
+}
+\makeatother
+\subtitle{从概率不等式到 Robust UCB 与 uniINF}
+\author{}
+\date{zyx学习笔记}
+
+\begin{document}
+\maketitle
+
+\thispagestyle{empty}
+\vfill
+\begin{center}
+{\color{BookMuted}\large 从定义、定理与证明出发的在线学习入门}
+\end{center}
+\vfill
+\clearpage
+\setcounter{tocdepth}{2}
+\tableofcontents
+\clearpage
+
+
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\subsection{阅读说明}\label{ux9605ux8bfbux8bf4ux660e}
+
+这份笔记讨论一个贯穿始终的问题：当我们必须一边行动、一边学习未知环境时，怎样在``探索未知选项''和``利用当前最佳选项''之间取得平衡？
+
+全文的逻辑路线是
+
+\[
+\begin{aligned}
+\text{概率与集中不等式}
+&\longrightarrow \text{随机多臂老虎机}
+\longrightarrow \text{ETC与UCB}\\
+&\longrightarrow \text{对抗型老虎机与EXP3}
+\longrightarrow \text{重尾反馈与稳健估计}\\
+&\longrightarrow \text{Robust UCB}
+\longrightarrow \text{uniINF}\\
+&\longrightarrow \text{持续更新中}.
+\end{aligned}
+\]
+
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第一章
+概率论准备：从尾概率到置信区间}\label{ux7b2cux4e00ux7ae0-ux6982ux7387ux8bbaux51c6ux5907ux4eceux5c3eux6982ux7387ux5230ux7f6eux4fe1ux533aux95f4}
+
+\subsection{1.1
+随机变量、期望和方差}\label{ux968fux673aux53d8ux91cfux671fux671bux548cux65b9ux5dee}
+
+\subsubsection{定义 1.1（期望）}\label{ux5b9aux4e49-1.1ux671fux671b}
+
+设离散随机变量 \(X\) 取值为 \(x_1,x_2,\ldots\)，则
+
+\[
+\mathbb E[X]=\sum_jx_j\mathbb P(X=x_j),
+\]
+
+只要右侧绝对收敛。连续型随机变量的期望定义为相应积分。
+
+期望描述大量重复实验中观测值的长期平均水平。
+
+\subsubsection{定义 1.2（方差）}\label{ux5b9aux4e49-1.2ux65b9ux5dee}
+
+设 \(\mu=\mathbb E[X]\)，则
+
+\[
+\operatorname{Var}(X)=\mathbb E[(X-\mu)^2].
+\]
+
+若二阶矩有限，则
+
+\[
+\operatorname{Var}(X)=\mathbb E[X^2]-\mu^2.
+\]
+
+方差描述随机变量围绕均值的平均平方波动。
+
+\subsubsection{定义
+1.3（示性函数）}\label{ux5b9aux4e49-1.3ux793aux6027ux51fdux6570}
+
+对事件 \(A\)，定义
+
+\[
+\mathbf 1_A(\omega)=
+\begin{cases}
+1,&\omega\in A,\\
+0,&\omega\notin A.
+\end{cases}
+\]
+
+因此
+
+\[
+\mathbb E[\mathbf1_A]=\mathbb P(A).
+\]
+
+示性函数把``事件是否发生''转化为数值变量，是概率证明中非常常见的桥梁。
+
+\subsection{1.2 Markov 不等式}\label{markov-ux4e0dux7b49ux5f0f}
+
+\subsubsection{定理 1.1（Markov
+不等式）}\label{ux5b9aux7406-1.1markov-ux4e0dux7b49ux5f0f}
+
+若 \(X\ge 0\) 几乎处处成立，且 \(a>0\)，则
+
+\[
+\mathbb P(X\ge a)\le \frac{\mathbb E[X]}{a}.
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e}
+
+逐点有
+
+\[
+X\ge a\mathbf1_{\{X\ge a\}}.
+\]
+
+两边取期望，得到
+
+\[
+\mathbb E[X]
+\ge a\mathbb E[\mathbf1_{\{X\ge a\}}]
+=a\mathbb P(X\ge a).
+\]
+
+两边除以 \(a\)，即得结论。\(\square\)
+
+\subsubsection{直观解释}\label{ux76f4ux89c2ux89e3ux91ca}
+
+如果一个非负随机变量的平均值很小，它就不可能以很高概率取到特别大的值。Markov
+不等式只使用期望，因此适用范围广，但通常较松。
+
+\subsection{1.3 Chebyshev 不等式}\label{chebyshev-ux4e0dux7b49ux5f0f}
+
+\subsubsection{定理 1.2（Chebyshev
+不等式）}\label{ux5b9aux7406-1.2chebyshev-ux4e0dux7b49ux5f0f}
+
+设 \(X\) 的均值为 \(\mu\)，方差为 \(\sigma^2<\infty\)。对任意 \(a>0\)，
+
+\[
+\mathbb P(|X-\mu|\ge a)
+\le \frac{\sigma^2}{a^2}.
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e-1}
+
+令非负随机变量
+
+\[
+Y=(X-\mu)^2.
+\]
+
+注意到
+
+\[
+\{|X-\mu|\ge a\}=\{Y\ge a^2\}.
+\]
+
+对 \(Y\) 使用 Markov 不等式：
+
+\[
+\mathbb P(|X-\mu|\ge a)
+=\mathbb P(Y\ge a^2)
+\le\frac{\mathbb E[Y]}{a^2}
+=\frac{\sigma^2}{a^2}.
+\]
+
+证毕。\(\square\)
+
+\subsubsection{推论 1.1（样本均值的 Chebyshev
+界）}\label{ux63a8ux8bba-1.1ux6837ux672cux5747ux503cux7684-chebyshev-ux754c}
+
+设 \(X_1,\ldots,X_n\) 独立同分布，均值为 \(\mu\)，方差为
+\(\sigma^2\)。令
+
+\[
+\bar X_n=\frac1n\sum_{t=1}^nX_t.
+\]
+
+则
+
+\[
+\mathbb P(|\bar X_n-\mu|\ge a)
+\le\frac{\sigma^2}{na^2}.
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e-2}
+
+由独立性，
+
+\[
+\operatorname{Var}(\bar X_n)
+=\frac1{n^2}\sum_{t=1}^n\operatorname{Var}(X_t)
+=\frac{\sigma^2}{n}.
+\]
+
+再对 \(\bar X_n\) 应用 Chebyshev 不等式即可。\(\square\)
+
+\subsection{1.4 Sub-Gaussian
+随机变量}\label{sub-gaussian-ux968fux673aux53d8ux91cf}
+
+\subsubsection{定义
+1.4（Sub-Gaussian）}\label{ux5b9aux4e49-1.4sub-gaussian}
+
+若存在 \(v>0\)，使得对任意 \(\lambda\in\mathbb R\)，
+
+\[
+\mathbb E\exp\{\lambda(X-\mathbb E X)\}
+\le \exp\left(\frac{v\lambda^2}{2}\right),
+\]
+
+则称 \(X\) 是方差因子为 \(v\) 的 sub-Gaussian 随机变量。
+
+\subsubsection{定理 1.3（Sub-Gaussian
+尾界）}\label{ux5b9aux7406-1.3sub-gaussian-ux5c3eux754c}
+
+若 \(X\) 满足上述条件，则对任意 \(a>0\)，
+
+\[
+\mathbb P(X-\mathbb EX\ge a)
+\le\exp\left(-\frac{a^2}{2v}\right).
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e-3}
+
+对任意 \(\lambda>0\)，由 Markov 不等式，
+
+\[
+\begin{aligned}
+\mathbb P(X-\mathbb EX\ge a)
+&=\mathbb P\big(e^{\lambda(X-\mathbb EX)}\ge e^{\lambda a}\big)\\
+&\le e^{-\lambda a}\mathbb E e^{\lambda(X-\mathbb EX)}\\
+&\le\exp\left(-\lambda a+\frac{v\lambda^2}{2}\right).
+\end{aligned}
+\]
+
+右端关于 \(\lambda\) 的最小值在 \(\lambda=a/v\) 处取得。代入即得
+
+\[
+\mathbb P(X-\mathbb EX\ge a)
+\le e^{-a^2/(2v)}.
+\]
+
+证毕。\(\square\)
+
+\subsubsection{有限方差为什么弱于
+sub-Gaussian？}\label{ux6709ux9650ux65b9ux5deeux4e3aux4ec0ux4e48ux5f31ux4e8e-sub-gaussian}
+
+Sub-Gaussian
+条件给出指数衰减的尾概率，并能推出所有阶矩有限。仅有有限方差只要求
+
+\[
+\mathbb E[(X-\mu)^2]<\infty,
+\]
+
+仍允许尾概率按照多项式速度衰减。因此
+
+\[
+\text{sub-Gaussian}\Longrightarrow\text{有限方差},
+\]
+
+反向一般不成立。
+
+\subsection{1.5 置信区间}\label{ux7f6eux4fe1ux533aux95f4}
+
+若估计量 \(\widehat\mu_n\) 满足
+
+\[
+\mathbb P\big(|\widehat\mu_n-\mu|\le r(n,\delta)\big)
+\ge1-\delta,
+\]
+
+则区间
+
+\[
+[\widehat\mu_n-r(n,\delta),\widehat\mu_n+r(n,\delta)]
+\]
+
+称为置信水平至少为 \(1-\delta\) 的置信区间，\(r(n,\delta)\)
+称为置信半径。
+
+置信半径应具有两个方向：样本数 \(n\)
+越大，半径越小；要求的置信水平越高，即 \(\delta\) 越小，半径越大。
+
+\subsection{本章关键疑问与解答}\label{ux672cux7ae0ux5173ux952eux7591ux95ee}
+
+\textbf{疑问一：为什么 Markov、Chebyshev 和 sub-Gaussian 尾界不是可以互相替换的三个公式？}
+
+\textbf{解答：}它们使用的信息强弱不同。Markov 只使用非负性和一阶矩；Chebyshev 使用有限方差；sub-Gaussian 条件控制矩母函数，从而给出指数尾界。假设越强，尾概率通常下降得越快。只有有限方差时，不能未经证明就套用指数尾界，这也是后文重尾估计必须更换工具的根本原因。
+
+\textbf{疑问二：sub-Gaussian 尾界的证明为什么要引入参数 \(\lambda\)，最后还要对它优化？}
+
+\textbf{解答：}指数变换把事件 \(X-\mathbb EX\ge a\) 转化为一个可用 Markov 不等式处理的非负随机变量事件。每个 \(\lambda>0\) 都产生一个合法上界，而 \(\lambda\) 只是证明者可以选择的参数；取最小值是在所有合法上界中选最紧者。这里的优化不是算法步骤，而是证明步骤。
+
+\textbf{疑问三：固定样本量的置信区间为什么不能直接保证一个自适应算法在所有时刻都正确？}
+
+\textbf{解答：}老虎机算法会根据历史决定何时、选择哪个臂，因此样本量本身是随机的，而且我们关心很多时刻和很多臂同时不失败。证明时通常要先对固定样本数建立界，再对样本数、时间和臂取并集界，或直接使用适用于停止时刻的置信序列。忽略这一层会把“某一次高概率正确”误写成“整个运行过程高概率正确”。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第二章
+随机平稳多臂老虎机}\label{ux7b2cux4e8cux7ae0-ux968fux673aux5e73ux7a33ux591aux81c2ux8001ux864eux673a}
+
+\subsection{2.1 问题定义}\label{ux95eeux9898ux5b9aux4e49}
+
+\subsubsection{定义
+2.1（随机平稳多臂老虎机）}\label{ux5b9aux4e49-2.1ux968fux673aux5e73ux7a33ux591aux81c2ux8001ux864eux673a}
+
+设有 \(K\) 个臂。臂 \(i\) 对应未知奖励分布 \(\nu_i\)，均值为
+
+\[
+\mu_i=\mathbb E_{X\sim\nu_i}[X].
+\]
+
+第 \(t\) 轮，学习者选择臂
+\(A_t\in\{1,\ldots,K\}\)，随后只观察该臂产生的奖励
+\(X_{t,A_t}\)。对同一臂的各次奖励独立同分布，且分布不随时间变化。
+
+``随机''表示奖励具有随机性；``平稳''表示每个臂的奖励分布随时间保持不变。
+
+\subsubsection{定义 2.2（最优臂与
+gap）}\label{ux5b9aux4e49-2.2ux6700ux4f18ux81c2ux4e0e-gap}
+
+令
+
+\[
+\mu^*=\max_{1\le i\le K}\mu_i.
+\]
+
+任取满足 \(\mu_{i^*}=\mu^*\) 的臂称为最优臂。定义臂 \(i\) 的次优差距
+
+\[
+\Delta_i=\mu^*-\mu_i\ge0.
+\]
+
+\subsubsection{定义
+2.3（伪遗憾）}\label{ux5b9aux4e49-2.3ux4f2aux9057ux61be}
+
+前 \(T\) 轮的期望伪遗憾定义为
+
+\[
+R_T=T\mu^*-\mathbb E\left[\sum_{t=1}^T\mu_{A_t}\right].
+\]
+
+令
+
+\[
+T_i(T)=\sum_{t=1}^T\mathbf1_{\{A_t=i\}}
+\]
+
+表示臂 \(i\) 被选择的次数，则
+
+\[
+R_T=\sum_{i=1}^K\Delta_i\mathbb E[T_i(T)].
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e-4}
+
+因为每轮选择臂 \(A_t\) 所造成的期望损失是
+
+\[
+\mu^*-\mu_{A_t}=\sum_{i=1}^K\Delta_i\mathbf1_{\{A_t=i\}},
+\]
+
+所以对时间求和并取期望：
+
+\[
+\begin{aligned}
+R_T
+&=\mathbb E\sum_{t=1}^T(\mu^*-\mu_{A_t})\\
+&=\sum_{i=1}^K\Delta_i\mathbb E\sum_{t=1}^T\mathbf1_{\{A_t=i\}}\\
+&=\sum_{i=1}^K\Delta_i\mathbb E[T_i(T)].
+\end{aligned}
+\]
+
+证毕。\(\square\)
+
+\subsection{2.2 探索与利用}\label{ux63a2ux7d22ux4e0eux5229ux7528}
+
+若只选择当前经验均值最高的臂，早期噪声可能导致永久误判；若始终随机探索，又无法利用已经获得的信息。老虎机问题的核心就是在两者之间取得平衡。
+
+\subsubsection{Random 策略}\label{random-ux7b56ux7565}
+
+每轮均匀随机选择一个臂。它保证探索，却通常产生线性遗憾。
+
+\subsubsection{Greedy 策略}\label{greedy-ux7b56ux7565}
+
+每轮选择当前经验均值最大的臂。它可能被早期偶然高奖励锁定。
+
+\subsubsection{\texorpdfstring{\(\varepsilon\)-greedy
+策略}{\textbackslash varepsilon-greedy 策略}}\label{varepsilon-greedy-ux7b56ux7565}
+
+以概率 \(1-\varepsilon\) 选择经验最优臂，以概率 \(\varepsilon\)
+均匀探索。它比 Greedy 稳健，但固定 \(\varepsilon\)
+会造成持续探索，通常仍产生与 \(T\) 成正比的探索损失。
+
+\subsection{2.3 Bernoulli 环境}\label{bernoulli-ux73afux5883}
+
+若臂 \(i\) 的奖励满足
+
+\[
+X_{t,i}\sim\operatorname{Bernoulli}(p_i),
+\]
+
+则奖励只能为 \(0\) 或 \(1\)，且
+
+\[
+\mu_i=\mathbb E[X_{t,i}]=p_i.
+\]
+
+因此学习最佳臂等价于识别成功概率最大的臂。
+
+\subsection{本章关键疑问与解答}\label{ux672cux7ae0ux5173ux952eux7591ux95ee-1}
+
+\textbf{疑问一：为什么遗憾可以写成 \(R_T=\sum_i\Delta_i\mathbb E[T_i(T)]\)，这个式子真正告诉了我们什么？}
+
+\textbf{解答：}每次选择臂 \(i\) 都付出期望差距 \(\Delta_i\)，因此总遗憾等于“每次选错的代价”乘以“选错的次数”再求和。算法分析由此转化为控制次优臂的选择次数。它也说明小 gap 的臂虽然单次损失小，却通常更难识别，可能被选择更多次。
+
+\textbf{疑问二：为什么固定 \(\varepsilon>0\) 的 \(\varepsilon\)-greedy 通常不能得到次线性遗憾？}
+
+\textbf{解答：}即使算法早已确定最优臂，每轮仍以固定概率探索，并以正概率选择次优臂。因此到第 \(T\) 轮，非必要探索次数与 \(T\) 同阶，累计遗憾也与 \(T\) 同阶。要获得次线性遗憾，探索强度必须随信息增加而衰减，或由置信度自适应决定。
+
+\textbf{疑问三：随机平稳假设在分析中承担了什么作用？}
+
+\textbf{解答：}它保证同一臂过去的样本能够估计未来的同一个均值。若分布随时间漂移，旧数据可能不再代表当前环境；若奖励依赖学习者过去的行动，独立同分布的集中论证也会失效。因此平稳随机老虎机不是“奖励每次固定”，而是“产生奖励的统计规律固定”。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第三章
+Explore-Then-Commit}\label{ux7b2cux4e09ux7ae0-explore-then-commit}
+
+\subsection{3.1 算法定义}\label{ux7b97ux6cd5ux5b9aux4e49}
+
+\subsubsection{定义 3.1（ETC）}\label{ux5b9aux4e49-3.1etc}
+
+预先选择探索长度 \(m\)。先将每个臂各选择 \(m\) 次，计算经验均值
+
+\[
+\widehat\mu_i(m)=\frac1m\sum_{s=1}^mX_{i,s}.
+\]
+
+随后选择经验均值最大的臂，并在剩余轮次中始终选择该臂。
+
+\subsection{3.2
+为什么探索长度需要平衡？}\label{ux4e3aux4ec0ux4e48ux63a2ux7d22ux957fux5ea6ux9700ux8981ux5e73ux8861}
+
+\begin{itemize}
+\tightlist
+\item
+  \(m\) 太小：识别错误的概率较大，之后可能长期选择错误臂；
+\item
+  \(m\) 太大：即使已经足以识别最优臂，仍被迫继续探索次优臂。
+\end{itemize}
+
+考虑两臂且奖励为 sub-Gaussian。若 gap 为
+\(\Delta\)，经验均值判断错误要求至少一个臂发生约 \(\Delta/2\)
+的偏差。集中不等式给出
+
+\[
+\mathbb P(\text{识别错误})
+\lesssim e^{-cm\Delta^2}.
+\]
+
+因此遗憾可粗略分解为
+
+\[
+R_T
+\lesssim
+m\Delta+T\Delta e^{-cm\Delta^2}.
+\]
+
+第一项是强制探索损失，第二项是识别错误后的长期损失。令第二项不至于过大，通常需要
+
+\[
+m\asymp\frac{\log T}{\Delta^2}.
+\]
+
+ETC展示了探索与利用的基本权衡，但它需要预先确定探索长度，且通常需要了解
+gap 的尺度。
+
+\iffalse
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  在上述粗略遗憾分解中，说明为什么增大 \(m\)
+  会使第一项增大、第二项减小。
+\item
+  若 \(\Delta\) 很小，为什么 ETC 所需探索次数会迅速增加？
+\end{enumerate}
+
+\subsection{本章习题解答}\label{ux672cux7ae0ux4e60ux9898ux89e3ux7b54-2}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  第一项 \(m\Delta\) 随 \(m\) 线性增大；第二项含 \(e^{-cm\Delta^2}\)，随
+  \(m\) 指数减小。
+\item
+  两臂均值越接近越难区分，而 \(m\asymp(\log T)/\Delta^2\)，故
+  \(\Delta\downarrow0\) 时所需样本数按 \(1/\Delta^2\) 境长。
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\fi
+\subsection{本章关键疑问与解答}\label{ux672cux7ae0ux5173ux952eux7591ux95ee-2}
+
+\textbf{疑问一：ETC 的探索长度为什么必须同时控制探索损失和误判损失？}
+
+\textbf{解答：}增加探索长度会线性增加强制尝试次优臂的代价，却会指数降低均值排序错误的概率。过早停止可能导致剩余所有轮次都选择错误臂；过晚停止则把已经足够清楚的问题继续当作未知问题处理。最优尺度来自两种代价的平衡，而不是单独让某一项最小。
+
+\textbf{疑问二：为什么不知道 gap 会成为 ETC 的结构性困难？}
+
+\textbf{解答：}区分两臂所需样本量约为 \(\Delta^{-2}\log T\)，而 ETC 必须在看完数据前预先决定探索长度。设得适合大 gap，会在小 gap 时过早承诺；设得适合极小 gap，又会在容易问题上浪费样本。这促使我们转向能根据置信半径动态继续或停止探索的算法。
+
+\textbf{疑问三：ETC 为什么比 UCB 更容易受到一次错误决定的长期影响？}
+
+\textbf{解答：}ETC 的 commit 阶段不再修正选择，所以探索结束时的排序错误会持续到终点。UCB 每轮重新计算指标，新数据能够逐步纠正早期误判。两者的差异不是是否探索，而是探索与利用能否在整个过程中持续交替。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第四章
+UCB：乐观面对不确定性}\label{ux7b2cux56dbux7ae0-ucbux4e50ux89c2ux9762ux5bf9ux4e0dux786eux5b9aux6027}
+
+\subsection{4.1 算法思想}\label{ux7b97ux6cd5ux601dux60f3}
+
+UCB
+不把探索和利用分成两个固定阶段，而是在每一轮同时考虑当前估计和不确定性。
+
+\subsubsection{定义 4.1（UCB
+指标）}\label{ux5b9aux4e49-4.1ucb-ux6307ux6807}
+
+设在第 \(t\) 轮前臂 \(i\) 已被选择 \(N_i(t-1)\) 次，经验均值为
+\(\widehat\mu_i(t-1)\)。定义
+
+\[
+B_i(t)=\widehat\mu_i(t-1)+r_i(t),
+\]
+
+其中 \(r_i(t)\) 是置信半径。第 \(t\) 轮选择
+
+\[
+A_t\in\arg\max_iB_i(t).
+\]
+
+指标的左项负责利用，右项负责探索。样本少时半径大；样本增多后半径缩小。
+
+对于未选择过的臂，可规定
+\(B_i(t)=+\infty\)，从而保证每个臂至少被尝试一次。
+
+\subsection{4.2
+次优臂被选择的三种原因}\label{ux6b21ux4f18ux81c2ux88abux9009ux62e9ux7684ux4e09ux79cdux539fux56e0}
+
+令 \(i^*\) 为最优臂，\(i\) 为次优臂。若算法选择了
+\(i\)，则至少发生下列事件之一：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  最优臂被低估：\(B_{i^*}(t)<\mu^*\)；
+\item
+  次优臂被高估：\(\widehat\mu_i(t)>\mu_i+r_i(t)\)；
+\item
+  次优臂样本不足：\(2r_i(t)>\Delta_i\)。
+\end{enumerate}
+
+\subsubsection{证明}\label{ux8bc1ux660e-5}
+
+反设三个事件都不发生。则
+
+\[
+B_{i^*}(t)\ge\mu^*.
+\]
+
+又因为第二、三个事件不发生，
+
+\[
+B_i(t)=\widehat\mu_i(t)+r_i(t)
+\le\mu_i+2r_i(t)
+\le\mu_i+\Delta_i
+=\mu^*.
+\]
+
+因此 \(B_i(t)\le B_{i^*}(t)\)，次优臂不可能严格优先于最优臂。\(\square\)
+
+\subsection{4.3
+经典遗憾界的证明骨架}\label{ux7ecfux5178ux9057ux61beux754cux7684ux8bc1ux660eux9aa8ux67b6}
+
+\subsubsection*{补充证明：sub-Gaussian 置信半径从何而来？}
+
+这不是凭空规定的公式，而是从样本均值的偏差概率上界反解出来的。以下先处理固定样本数，再处理老虎机中随机的拉取次数。全文的 \(\log\) 均为自然对数。
+
+\paragraph{一、假设与定义}
+固定臂 \(i\)，将该臂依次被拉取时的奖励记为
+\(X_{i,1},X_{i,2},\ldots\)。假设它们独立同分布、均值为 \(\mu_i\)，且满足
+\[
+\mathbb E\!\left[e^{\lambda(X_{i,k}-\mu_i)}\right]
+\le e^{\sigma^2\lambda^2/2},
+\qquad \lambda\in\mathbb R,\quad \sigma^2>0.
+\]
+这称为 \(\sigma^2\)-sub-Gaussian 条件；\(\sigma^2\) 是方差代理，不必等于真实方差。为简洁起见，假设各臂共用此上界。前 \(n\) 个奖励的样本均值为
+\[
+\widehat\mu_{i,n}=\frac1n\sum_{k=1}^n X_{i,k}.
+\]
+目标是找出半径 \(r\)，使估计偏离真实均值超过 \(r\) 的概率足够小。
+
+\paragraph{二、定理：固定样本数的集中不等式}
+对任意确定的 \(n\ge1\) 和 \(r>0\)，有
+\[
+\boxed{\mathbb P\!\left(
+|\widehat\mu_{i,n}-\mu_i|\ge r
+\right)\le 2\exp\!\left(-\frac{nr^2}{2\sigma^2}\right).}
+\]
+
+证明第一步：利用独立性控制样本均值的矩母函数：
+\[
+\begin{aligned}
+\mathbb E e^{\lambda(\widehat\mu_{i,n}-\mu_i)}
+&=\prod_{k=1}^n
+\mathbb E e^{(\lambda/n)(X_{i,k}-\mu_i)}\\
+&\le\prod_{k=1}^n
+\exp\!\left(\frac{\sigma^2\lambda^2}{2n^2}\right)
+=\exp\!\left(\frac{\sigma^2\lambda^2}{2n}\right).
+\end{aligned}
+\]
+所以取平均后，方差代理从 \(\sigma^2\) 缩小为 \(\sigma^2/n\)。
+
+第二步：对任意 \(\lambda>0\)，对非负随机变量
+\(e^{\lambda(\widehat\mu_{i,n}-\mu_i)}\) 使用 Markov 不等式：
+\[
+\begin{aligned}
+\mathbb P(\widehat\mu_{i,n}-\mu_i\ge r)
+&=\mathbb P\!\left(e^{\lambda(\widehat\mu_{i,n}-\mu_i)}
+                    \ge e^{\lambda r}\right)\\
+&\le e^{-\lambda r}
+       \mathbb E e^{\lambda(\widehat\mu_{i,n}-\mu_i)}\\
+&\le \exp\!\left(-\lambda r+
+                      \frac{\sigma^2\lambda^2}{2n}\right).
+\end{aligned}
+\]
+
+第三步：选择使上界最小的 \(\lambda\)。将指数配方：
+\[
+-\lambda r+\frac{\sigma^2\lambda^2}{2n}
+=\frac{\sigma^2}{2n}
+  \left(\lambda-\frac{nr}{\sigma^2}\right)^2
+ -\frac{nr^2}{2\sigma^2}.
+\]
+取 \(\lambda=nr/\sigma^2>0\)，得到上尾界
+\[
+\mathbb P(\widehat\mu_{i,n}-\mu_i\ge r)
+\le e^{-nr^2/(2\sigma^2)}.
+\]
+对负偏差重复同样的证明，得到下尾界。两侧事件取并集，概率上界相加，即得定理。证毕。
+
+\paragraph{三、反解置信半径}
+给定允许的失败概率 \(\delta\in(0,1)\)，只需要求
+\[
+2e^{-nr^2/(2\sigma^2)}\le\delta.
+\]
+取对数、移项并取正平方根，可取
+\[
+\boxed{r(n,\delta)=
+\sqrt{\frac{2\sigma^2\log(2/\delta)}{n}}.}
+\]
+于是 \([\widehat\mu_{i,n}-r,\widehat\mu_{i,n}+r]\)
+以至少 \(1-\delta\) 的概率覆盖 \(\mu_i\)。
+样本数越大，半径按 \(1/\sqrt n\) 缩小；要求的失败概率越小，半径越大。
+
+对于 \(t\ge2\)，若令固定样本数处的失败概率为
+\(\delta_t=2t^{-\beta}\)，其中 \(\beta>1\)，便有
+\[
+r(n,t)=\sqrt{\frac{2\sigma^2\beta\log t}{n}}
+       =\sqrt{\frac{c\log t}{n}},
+\qquad c=2\sigma^2\beta.
+\]
+因此 \(\log t\) 来自让错误概率随轮数按多项式速度下降，而不是一个额外的经验假设。
+
+\paragraph{四、关键细节：拉取次数是随机变量}
+在第 \(t\) 轮决策前，
+\[
+\widehat\mu_i(t-1)=
+\widehat\mu_{i,N_i(t-1)}.
+\]
+算法根据过去奖励选择动作，故 \(N_i(t-1)\) 与奖励相关。
+不能直接在条件 \(N_i(t-1)=n\) 下照搬固定样本数的独立同分布集中界：
+这个条件本身可能筛选了奖励轨迹。
+
+解决方法是同时控制所有可能的样本数。固定 \(t\ge2\)，定义
+\[
+E_{i,t}=
+\left\{N_i(t-1)\ge1,\
+|\widehat\mu_{i,N_i(t-1)}-\mu_i|
+>\sqrt{\frac{c\log t}{N_i(t-1)}}\right\}.
+\]
+随机次数处若出错，则某个确定样本数 \(1\le n\le t-1\) 处必然出错，因此
+\[
+E_{i,t}\subseteq
+\bigcup_{n=1}^{t-1}
+\left\{|\widehat\mu_{i,n}-\mu_i|
+>\sqrt{\frac{c\log t}{n}}\right\}.
+\]
+并集界不要求这些事件相互独立。由固定样本数的定理，
+\[
+\begin{aligned}
+\mathbb P(E_{i,t})
+&\le\sum_{n=1}^{t-1}
+2\exp\!\left[-\frac{n}{2\sigma^2}
+                  \frac{c\log t}{n}\right]\\
+&=2(t-1)t^{-c/(2\sigma^2)}
+\le 2t^{\,1-c/(2\sigma^2)}.
+\end{aligned}
+\]
+这里的额外因子 \(t\) 来自对可能样本数取并集，不能漏掉。
+
+例如取 \(c=6\sigma^2\)（即 \(\beta=3\)），就有
+\[
+\mathbb P(E_{i,t})\le\frac2{t^2},
+\qquad
+\sum_{t=2}^{\infty}\mathbb P(E_{i,t})<\infty.
+\]
+若还要求 \(K\) 个臂在同一轮都正确，再对臂取并集，失效概率至多为 \(2K/t^2\)。
+这些是每轮的概率界及其可求和性，不是说所有轮次必然都正确。
+常数 \(6\sigma^2\) 是便于证明的充分选择，并非最优常数。
+
+\paragraph{五、回到 UCB 与边界情形}
+由此得到本节使用的形式：
+\[
+\boxed{r_i(t)=\sqrt{\frac{c\log t}{N_i(t-1)}}.}
+\]
+若 \(N_i(t-1)=0\)，不能做除法：通常先将每个臂拉取一次，或者把未拉取臂的 UCB 指数设为 \(+\infty\)。
+在上述简单并集证明中，取 \(c=6\sigma^2\) 可直接接上后面的“失败概率按时间可求和”。
+
+概括这条链：
+sub-Gaussian 条件给出指数型偏差界；反解失败概率得到置信半径；
+选择随时间下降的失败概率产生 \(\log t\)；
+再用并集界处理自适应拉取造成的随机样本数。
+
+\paragraph{六、自检题与解答}
+题目：固定 \(t\) 与 \(c\)，若某个臂的拉取次数从 \(n\) 增加至 \(4n\)，置信半径变成多少？
+\[
+r(4n,t)=\sqrt{\frac{c\log t}{4n}}
+       =\frac12r(n,t).
+\]
+答案：变为原来的一半。因此若想把半径减半，需要将样本数增加至原来的四倍。
+
+\subsubsection*{继续：由置信半径得到拉取次数界}
+
+若 sub-Gaussian 置信半径为
+
+\[
+r_i(t)=\sqrt{\frac{c\log t}{N_i(t-1)}},
+\]
+
+则要使 \(2r_i(t)\le\Delta_i\)，只需
+
+\[
+N_i(t-1)\ge\frac{4c\log t}{\Delta_i^2}.
+\]
+
+置信区间失败事件可通过令其概率按 \(t^{-2}\)
+或更快速度下降而求和控制。因此
+
+\[
+\mathbb E[T_i(T)]
+=O\left(\frac{\log T}{\Delta_i^2}\right).
+\]
+
+再利用
+
+\[
+R_T=\sum_i\Delta_i\mathbb E[T_i(T)],
+\]
+
+得到
+
+\[
+R_T=O\left(\sum_{i:\Delta_i>0}\frac{\log T}{\Delta_i}\right).
+\]
+
+\iffalse
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  两个臂的估计均值分别为 \(2.5,2.2\)，置信半径分别为
+  \(0.3,0.8\)。计算UCB指标并确定选择哪个臂。
+\item
+  为什么样本较少的臂即使估计均值稍低，也可能被UCB选择？
+\item
+  从 \(2\sqrt{c\log T/N_i}\le\Delta_i\) 解出 \(N_i\) 的下界。
+\end{enumerate}
+
+\subsection{本章习题解答}\label{ux672cux7ae0ux4e60ux9898ux89e3ux7b54-3}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \(B_1=2.8,B_2=3.0\)，因此选择第二个臂。
+\item
+  因为它的置信半径更大，真实均值仍可能很高；这是``乐观面对不确定性''。
+\item
+  两边平方并整理，得到 \(N_i\ge4c\log T/\Delta_i^2\)。
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\fi
+\subsection{本章关键疑问与解答}\label{ux672cux7ae0ux5173ux952eux7591ux95ee-3}
+
+\textbf{疑问一：UCB 为什么能同时完成探索和利用，而不需要显式设置探索阶段？}
+
+\textbf{解答：}指标由经验均值和置信半径组成。经验均值高的臂因看起来优秀而被利用；样本少的臂因置信半径大而仍有机会被探索。每选择一次某臂，它的半径就缩小，因此探索会随着证据积累自动减少。
+
+\textbf{疑问二：证明中“次优臂被选择只可能因为三个坏事件之一”为什么是核心？}
+
+\textbf{解答：}当最优臂没有被低估、次优臂没有被高估，且次优臂半径已小于 gap 的一半时，次优臂的指标不可能超过最优臂。于是选择次数被分成两类：采样尚不充分的有限次数，以及置信事件失败的稀有次数。前者给出 \(\log T/\Delta_i^2\) 的样本复杂度，后者通过可求和失败概率控制。
+
+\textbf{疑问三：置信半径中的 \(\log t\) 为什么不是随意添加的惩罚项？}
+
+\textbf{解答：}算法要在许多轮次上反复使用置信结论。把第 \(t\) 轮失败概率设计成约 \(t^{-p}\)（\(p>1\)），才能使全时间失败概率之和有限。反解指数集中界便产生 \(\sqrt{\log t/N_i(t-1)}\)。因此 \(\log t\) 来自“同时控制很多时刻”的概率要求。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第五章 对抗型老虎机与
+EXP3}\label{ux7b2cux4e94ux7ae0-ux5bf9ux6297ux578bux8001ux864eux673aux4e0e-exp3}
+
+\subsection{5.1
+从随机环境到对抗环境}\label{ux4eceux968fux673aux73afux5883ux5230ux5bf9ux6297ux73afux5883}
+
+随机平稳环境假设每个臂的奖励来自固定分布。对抗环境允许每轮的损失向量
+
+\[
+\ell_t=(\ell_{t,1},\ldots,\ell_{t,K})
+\]
+
+随时间变化，甚至由对手设计。学习者只观察所选臂的损失，这称为 bandit
+feedback。
+
+\subsubsection{定义
+5.1（对抗型老虎机遗憾）}\label{ux5b9aux4e49-5.1ux5bf9ux6297ux578bux8001ux864eux673aux9057ux61be}
+
+\[
+R_T=
+\mathbb E\left[\sum_{t=1}^T\ell_{t,A_t}\right]
+-\min_{1\le i\le K}\sum_{t=1}^T\ell_{t,i}.
+\]
+
+比较对象是事后最好的固定臂，而不是每轮都能变化的动态最优臂。
+
+\subsection{5.2
+重要性加权估计}\label{ux91cdux8981ux6027ux52a0ux6743ux4f30ux8ba1}
+
+设第 \(t\) 轮按照概率向量 \(p_t\) 选择臂。定义
+
+\[
+\widehat\ell_{t,i}
+=\frac{\ell_{t,i}\mathbf1_{\{A_t=i\}}}{p_{t,i}}.
+\]
+
+\subsubsection{定理
+5.1（无偏性）}\label{ux5b9aux7406-5.1ux65e0ux504fux6027}
+
+在给定历史和损失向量的条件下，
+
+\[
+\mathbb E[\widehat\ell_{t,i}]=\ell_{t,i}.
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e-6}
+
+因为 \(\mathbb P(A_t=i)=p_{t,i}\)，所以
+
+\[
+\begin{aligned}
+\mathbb E[\widehat\ell_{t,i}]
+&=p_{t,i}\frac{\ell_{t,i}}{p_{t,i}}
++(1-p_{t,i})\cdot0\\
+&=\ell_{t,i}.
+\end{aligned}
+\]
+
+证毕。\(\square\)
+
+除以 \(p_{t,i}\) 修正了``只有以概率 \(p_{t,i}\)
+才能观察到该臂''的抽样偏差，但当 \(p_{t,i}\)
+很小时，估计量的波动会很大。
+
+\subsection{5.3 EXP3
+的基本结构}\label{exp3-ux7684ux57faux672cux7ed3ux6784}
+
+初始化每个臂权重 \(w_{1,i}=1\)。第 \(t\) 轮：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  由权重构造概率 \(p_{t,i}\)；
+\item
+  按 \(p_t\) 随机选择臂 \(A_t\)；
+\item
+  观察 \(\ell_{t,A_t}\)；
+\item
+  构造 \(\widehat\ell_{t,i}\)；
+\item
+  更新
+\end{enumerate}
+
+\[
+w_{t+1,i}=w_{t,i}\exp(-\eta\widehat\ell_{t,i}).
+\]
+
+EXP3不是根据一次奖励断言某个臂永远更好，而是不断调整概率。即使某次正反馈之后下一次出现负反馈，后续权重仍会被重新修正。
+
+在有界损失条件下，合适选择学习率可得到典型遗憾量级
+
+\[
+R_T=O(\sqrt{TK\log K}).
+\]
+
+\iffalse
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  若 \(p_{t,i}=0.1\)，观察到损失 \(0.5\)，则重要性加权估计是多少？
+\item
+  为什么必须避免 \(p_{t,i}=0\)？
+\item
+  EXP3的遗憾比较对象是每轮最优臂还是事后最优的固定臂？
+\end{enumerate}
+
+\subsection{本章习题解答}\label{ux672cux7ae0ux4e60ux9898ux89e3ux7b54-4}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  所选臂的估计为 \(0.5/0.1=5\)。
+\item
+  一方面无法再观察该臂；另一方面重要性加权中的除法无定义。
+\item
+  事后最优的固定臂。
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\fi
+\subsection{本章关键疑问与解答}\label{ux672cux7ae0ux5173ux952eux7591ux95ee-4}
+
+\textbf{疑问一：对抗环境中的反馈可能剧烈变化，依据一次反馈更新权重还有意义吗？}
+
+\textbf{解答：}单次反馈不是对某个臂永久好坏的判决，而是累计损失估计中的一次增量。EXP3 不假设某臂存在固定均值；它保证的是长期累计表现接近事后最优的固定臂。某次正反馈之后出现负反馈并不矛盾，后续更新会继续修正概率。
+
+\textbf{疑问二：重要性加权既然无偏，为什么仍然需要控制最小抽样概率？}
+
+\textbf{解答：}无偏只说明期望正确，不说明波动小。当 \(p_{t,i}\) 很小时，臂一旦被抽中，估计量会被除以很小的概率，从而产生巨大方差；若概率为零，甚至无法定义估计，也永远无法再获得该臂信息。EXP3 的探索混合和后文的 barrier、截断处理，本质上都在处理“无偏但不稳定”的问题。
+
+\textbf{疑问三：为什么比较对象是事后最优固定臂，而不是每轮最优臂？}
+
+\textbf{解答：}在完全对抗的序列中，每轮最优臂可能任意切换，bandit 反馈又只显示一个坐标；没有额外结构时，学习者无法追踪这样的动态基准。固定臂基准衡量的是：即使事后知道整段序列，始终选同一个臂最多能好多少。若要比较动态基准，必须加入切换次数、变差预算等额外限制。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第六章
+重尾分布与普通样本均值的失效}\label{ux7b2cux516dux7ae0-ux91cdux5c3eux5206ux5e03ux4e0eux666eux901aux6837ux672cux5747ux503cux7684ux5931ux6548}
+
+\subsection{\texorpdfstring{6.1 有限 \(1+\epsilon\)
+阶矩}{6.1 有限 1+\textbackslash epsilon 阶矩}}\label{ux6709ux9650-1epsilon-ux9636ux77e9}
+
+\subsubsection{定义
+6.1（重尾矩条件）}\label{ux5b9aux4e49-6.1ux91cdux5c3eux77e9ux6761ux4ef6}
+
+设 \(\epsilon\in(0,1]\)。若
+
+\[
+\mathbb E|X|^{1+\epsilon}\le u,
+\]
+
+则称随机变量满足有限 \(1+\epsilon\) 阶原始矩条件。
+
+\begin{itemize}
+\tightlist
+\item
+  \(\epsilon=1\)：二阶矩有限，从而方差有限；
+\item
+  \(\epsilon=0.5\)：只要求 \(1.5\) 阶矩有限，方差可能无限；
+\item
+  \(\epsilon\) 越小，条件越宽松，允许尾部越重。
+\end{itemize}
+
+\subsection{6.2
+为什么极端值会破坏普通均值？}\label{ux4e3aux4ec0ux4e48ux6781ux7aefux503cux4f1aux7834ux574fux666eux901aux5747ux503c}
+
+考虑数据
+
+\[
+1,2,2,3,1000.
+\]
+
+普通均值为
+\(201.6\)，远离大多数样本所在的区域。样本均值对每个观测赋予同样权重，因此单个极端值可以产生巨大影响。
+
+在仅有 \(1+\epsilon\) 阶矩时，样本均值的偏差概率通常只能得到关于
+\(1/\delta\)
+的多项式依赖；UCB跨越多个时间点需要极小且可求和的失败概率，因此普通均值不再理想。
+
+\subsection{6.3 截断均值}\label{ux622aux65adux5747ux503c}
+
+\subsubsection{定义
+6.2（截断均值）}\label{ux5b9aux4e49-6.2ux622aux65adux5747ux503c}
+
+给定阈值 \(B_t>0\)，定义
+
+\[
+\widehat\mu_T
+=\frac1n\sum_{t=1}^nX_t\mathbf1_{\{|X_t|\le B_t\}}.
+\]
+
+截断把原本可能无界的变量变成有界变量，使 Bernstein
+型集中不等式可以使用。但截断会删除真实分布的一部分，因此会引入偏差。
+
+\subsubsection{引理
+6.1（截断偏差上界）}\label{ux5f15ux7406-6.1ux622aux65adux504fux5deeux4e0aux754c}
+
+若 \(\mathbb E|X|^{1+\epsilon}\le u\)，则
+
+\[
+\mathbb E\left[|X|\mathbf1_{\{|X|>B\}}\right]
+\le\frac{u}{B^\epsilon}.
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e-7}
+
+在事件 \(|X|>B\) 上，\(|X|^\epsilon>B^\epsilon\)，因此
+
+\[
+|X|
+=\frac{|X|^{1+\epsilon}}{|X|^\epsilon}
+\le\frac{|X|^{1+\epsilon}}{B^\epsilon}.
+\]
+
+乘以示性函数并取期望：
+
+\[
+\mathbb E[|X|\mathbf1_{\{|X|>B\}}]
+\le\frac{\mathbb E|X|^{1+\epsilon}}{B^\epsilon}
+\le\frac{u}{B^\epsilon}.
+\]
+
+证毕。\(\square\)
+
+\subsubsection{引理
+6.2（截断后二阶矩上界）}\label{ux5f15ux7406-6.2ux622aux65adux540eux4e8cux9636ux77e9ux4e0aux754c}
+
+\[
+\mathbb E[X^2\mathbf1_{\{|X|\le B\}}]
+\le uB^{1-\epsilon}.
+\]
+
+\subsubsection{证明}\label{ux8bc1ux660e-8}
+
+在 \(|X|\le B\) 上，
+
+\[
+X^2=|X|^{1+\epsilon}|X|^{1-\epsilon}
+\le |X|^{1+\epsilon}B^{1-\epsilon}.
+\]
+
+取期望并利用矩条件即得。\(\square\)
+
+阈值选择体现偏差---波动权衡：
+
+\begin{itemize}
+\tightlist
+\item
+  \(B\) 太小：删除样本太多，截断偏差大；
+\item
+  \(B\) 太大：保留的极端值太多，随机波动大。
+\end{itemize}
+
+平衡两者后，可得到误差速度
+
+\[
+|\widehat\mu_T-\mu|
+\lesssim
+u^{1/(1+\epsilon)}
+\left(\frac{\log(1/\delta)}n\right)^{\epsilon/(1+\epsilon)}.
+\]
+
+\subsection{6.4 Median-of-Means}\label{median-of-means}
+
+\subsubsection{定义
+6.3（Median-of-Means）}\label{ux5b9aux4e49-6.3median-of-means}
+
+将 \(n\) 个样本分成 \(k\) 个互不相交的块，计算每个块的样本均值
+
+\[
+\widehat\mu_1,\ldots,\widehat\mu_k,
+\]
+
+再取这些块均值的中位数：
+
+\[
+\widehat\mu_{\mathrm{MoM}}
+=\operatorname{median}(\widehat\mu_1,\ldots,\widehat\mu_k).
+\]
+
+极端值可能破坏少数块，但只要超过一半的块是好块，坏块就无法把中位数任意拖走。
+
+\subsubsection{原始矩与中心矩}\label{ux539fux59cbux77e9ux4e0eux4e2dux5fc3ux77e9}
+
+截断均值常依赖
+
+\[
+\mathbb E|X|^{1+\epsilon},
+\]
+
+而 Median-of-Means 可在中心矩
+
+\[
+\mathbb E|X-\mu|^{1+\epsilon}
+\]
+
+条件下工作。中心矩具有平移不变性：若 \(X'=X+a\)，则 \(\mu'=\mu+a\)，从而
+
+\[
+X'-\mu'=X-\mu.
+\]
+
+\iffalse
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  若 \(u=4,\epsilon=1,B=2\)，计算截断偏差上界 \(u/B^\epsilon\)。
+\item
+  五个块均值为 \(2,2.1,1.9,500,2.2\)，求 Median-of-Means。
+\item
+  解释为什么对所有奖励同时加1000不会改变中心矩。
+\end{enumerate}
+
+\subsection{本章习题解答}\label{ux672cux7ae0ux4e60ux9898ux89e3ux7b54-5}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  上界为 \(4/2=2\)。
+\item
+  排序为 \(1.9,2,2.1,2.2,500\)，中位数为 \(2.1\)。
+\item
+  因为 \((X+1000)-(\mu+1000)=X-\mu\)。
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\fi
+\subsection{本章关键疑问与解答}\label{ux672cux7ae0ux5173ux952eux7591ux95ee-5}
+
+\textbf{疑问一：普通样本均值无偏，为什么在重尾环境中仍可能不是合适的估计器？}
+
+\textbf{解答：}无偏只描述平均意义，不保证高概率误差小。重尾分布会以小概率产生极端样本，一个极端值就可能长时间主导样本均值；仅有限低阶矩时，经典指数集中界不再成立。bandit 算法需要的是可转化为置信区间的高概率控制，而不只是期望正确。
+
+\textbf{疑问二：截断为什么会同时带来好处和偏差？阈值应怎样理解？}
+
+\textbf{解答：}截断限制单个样本的影响，使处理后的随机变量能够使用更强的集中工具；但被删除或压缩的尾部带来系统偏差。阈值小则波动容易控制但偏差大，阈值大则偏差小但极端值影响增强。阈值随样本量增长，是为了让早期稳健性和长期一致性同时成立。
+
+\textbf{疑问三：Median-of-Means 为什么能抵抗少数极端值，它与普通中位数有何不同？}
+
+\textbf{解答：}它先分块取均值，让每个块利用平均化降低普通波动，再对块均值取中位数，使少数被极端值污染的坏块无法支配结果。它估计的是总体均值，不是总体中位数；稳健性来自“多数块是好块”，而不是把原始观测直接排序。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第七章 Robust UCB
+与重尾遗憾界}\label{ux7b2cux4e03ux7ae0-robust-ucb-ux4e0eux91cdux5c3eux9057ux61beux754c}
+
+\subsection{7.1
+稳健均值估计器接口}\label{ux7a33ux5065ux5747ux503cux4f30ux8ba1ux5668ux63a5ux53e3}
+
+假设存在估计量 \(\widehat\mu(n,\delta)\)，使得以至少 \(1-\delta\)
+的概率，
+
+\[
+|\widehat\mu-\mu|
+\le
+v^{1/(1+\epsilon)}
+\left(\frac{c\log(1/\delta)}n\right)^{\epsilon/(1+\epsilon)}.
+\]
+
+这一条件可以看作算法接口：只要一个均值估计器满足它，就可以被装入 Robust
+UCB。截断均值、Median-of-Means 和 Catoni
+估计器分别在不同矩条件下提供这种保证。
+
+\subsection{7.2 Robust UCB 指标}\label{robust-ucb-ux6307ux6807}
+
+若臂 \(i\) 已被选择 \(s\) 次，定义
+
+\[
+B_{i,s,t}
+=\widehat\mu_{i,s,t}
++v^{1/(1+\epsilon)}
+\left(\frac{c\log(t^2)}s\right)^{\epsilon/(1+\epsilon)}.
+\]
+
+第 \(t\) 轮选择指标最大的臂。这里相当于取
+\(\delta=t^{-2}\)，使各轮失败概率可以求和控制。
+
+当 \(\epsilon=1\) 时，置信半径按 \(s^{-1/2}\) 收缩；当 \(\epsilon=0.5\)
+时，它只按 \(s^{-1/3}\) 收缩。因此尾部越重，均值越难估计。
+
+\subsection{7.3 主定理}\label{ux4e3bux5b9aux7406}
+
+\subsubsection{定理 7.1（Robust UCB
+遗憾界，忽略常数）}\label{ux5b9aux7406-7.1robust-ucb-ux9057ux61beux754cux5ffdux7565ux5e38ux6570}
+
+若各臂满足有限 \(1+\epsilon\)
+阶矩条件，且所用稳健估计器满足上述置信界，则
+
+\[
+R_T
+=O\left(
+\sum_{i:\Delta_i>0}
+\frac{v^{1/\epsilon}\log T}{\Delta_i^{1/\epsilon}}
+\right).
+\]
+
+\subsubsection{证明骨架}\label{ux8bc1ux660eux9aa8ux67b6}
+
+对次优臂 \(i\)，如果置信区间均正确，那么只要
+
+\[
+2v^{1/(1+\epsilon)}
+\left(\frac{c\log T}{N_i}\right)^{\epsilon/(1+\epsilon)}
+\le\Delta_i,
+\]
+
+该臂就不会继续优先于最优臂。解出 \(N_i\)：
+
+\[
+N_i
+=O\left(
+\frac{v^{1/\epsilon}\log T}
+{\Delta_i^{(1+\epsilon)/\epsilon}}
+\right).
+\]
+
+置信失败事件的概率在时间上可求和，只贡献常数阶的额外选择次数。因此
+
+\[
+\mathbb E[T_i(T)]
+=O\left(
+\frac{v^{1/\epsilon}\log T}
+{\Delta_i^{(1+\epsilon)/\epsilon}}
+\right).
+\]
+
+最后乘以每次选择臂 \(i\) 的损失 \(\Delta_i\)：
+
+\[
+\begin{aligned}
+R_{T,i}
+&=\Delta_i\mathbb E[T_i(T)]\\
+&=O\left(
+\frac{v^{1/\epsilon}\log T}
+{\Delta_i^{1/\epsilon}}
+\right).
+\end{aligned}
+\]
+
+对所有次优臂求和即得结论。\(\square\)
+
+\subsection{7.4
+如何解释定理？}\label{ux5982ux4f55ux89e3ux91caux5b9aux7406}
+
+当 \(\epsilon=1\) 时，
+
+\[
+R_T=O\left(\sum_i\frac{v\log T}{\Delta_i}\right),
+\]
+
+与 sub-Gaussian UCB
+的阶数相同。因此有限方差已经足以恢复经典遗憾阶数，前提是不用普通均值，而使用稳健估计器。
+
+当 \(\epsilon<1\) 时，对小 gap 的依赖恶化。例如 \(\epsilon=0.5\) 时，
+
+\[
+R_T=O\left(\sum_i\frac{v^2\log T}{\Delta_i^2}\right).
+\]
+
+这说明重尾使相近臂更难区分。相应下界表明 \(1/\Delta_i^{1/\epsilon}\)
+的依赖在一般情形下无法消除。
+
+\iffalse
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  当 \(\epsilon=0.5\) 时，置信半径关于样本数按什么速度收缩？
+\item
+  当 \(\Delta=0.1\) 时，忽略其他项，比较 \(\epsilon=1\) 和
+  \(\epsilon=0.5\) 时的 gap 因子。
+\item
+  解释``置信区间都正确且次优臂已经采样充分时，算法不会继续大量选择它''。
+\end{enumerate}
+
+\subsection{本章习题解答}\label{ux672cux7ae0ux4e60ux9898ux89e3ux7b54-6}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \(\epsilon/(1+\epsilon)=1/3\)，故按 \(n^{-1/3}\) 收缩。
+\item
+  \(\epsilon=1\) 时为 \(1/0.1=10\)；\(\epsilon=0.5\) 时为
+  \(1/0.1^2=100\)。后者更难。
+\item
+  此时次优臂的UCB不超过 \(\mu_i+\Delta_i=\mu^*\)，而最优臂UCB至少为
+  \(\mu^*\)，故次优臂不再严格占优。
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\fi
+\subsection{本章关键疑问与解答}\label{ux672cux7ae0ux5173ux952eux7591ux95ee-6}
+
+\textbf{疑问一：Robust UCB 与经典 UCB 的证明骨架为什么几乎相同，结果却对 gap 有更差的依赖？}
+
+\textbf{解答：}两者都依靠“置信区间正确且半径小于 gap 的一半后，次优臂不再占优”。差别在置信半径的收缩速度：重尾条件下半径约按 \(n^{-\epsilon/(1+\epsilon)}\) 收缩，比 \(n^{-1/2}\) 慢。为把半径压到 \(\Delta_i\) 以下需要更多样本，因此遗憾中的 gap 幂次恶化。
+
+\textbf{疑问二：为什么把稳健均值估计器写成一个“接口”是有价值的？}
+
+\textbf{解答：}UCB 的决策逻辑只需要估计值及其高概率误差界，并不依赖估计器内部究竟使用截断、Median-of-Means 还是 Catoni 方法。先证明抽象接口下的遗憾结论，再代入不同估计器，可以把概率估计问题与序贯决策问题分离，也能清楚看出每种矩条件影响的是哪一步。
+
+\textbf{疑问三：有限方差为何可能恢复经典的 \(\log T/\Delta_i\) 遗憾阶数，却仍不能直接使用普通均值的次高斯置信区间？}
+
+\textbf{解答：}有限方差允许构造具有次高斯型高概率误差的稳健估计器，但普通样本均值本身在所有有限方差分布上并没有同样的指数尾保证。恢复经典阶数靠的是更合适的估计方法，而不是把“有限方差”误认为“次高斯”。
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第八章 从经典重尾老虎机到
+uniINF}\label{ux7b2cux516bux7ae0-ux4eceux7ecfux5178ux91cdux5c3eux8001ux864eux673aux5230-uniinf}
+
+\subsection{8.1
+经典方法的局限}\label{ux7ecfux5178ux65b9ux6cd5ux7684ux5c40ux9650}
+
+经典 Robust UCB
+主要面向随机平稳环境，并且常要求预先知道重尾阶数和矩上界。现实中，学习者可能不知道：
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  环境究竟是随机平稳还是对抗变化的；
+\item
+  重尾阶数 \(\alpha\) 或 \(1+\epsilon\)；
+\item
+  尾部尺度 \(\sigma\) 或矩上界 \(u\)。
+\end{enumerate}
+
+\subsection{8.2 Best-of-Both-Worlds}\label{best-of-both-worlds}
+
+一个 Best-of-Both-Worlds
+算法使用同一套更新规则，在不知道环境类型的情况下：
+
+\begin{itemize}
+\tightlist
+\item
+  在随机环境中取得较小的 gap-dependent 遗憾；
+\item
+  在对抗环境中取得接近最优的 worst-case 遗憾。
+\end{itemize}
+
+\subsection{8.3 Parameter-Free}\label{parameter-free}
+
+这里的 parameter-free
+不是``算法没有任何设置''，而是不需要预先知道未知的重尾参数。算法需要根据实际观测自动调节学习率与截断尺度。
+
+\subsection{8.4
+为什么重尾和重要性加权结合后更困难？}\label{ux4e3aux4ec0ux4e48ux91cdux5c3eux548cux91cdux8981ux6027ux52a0ux6743ux7ed3ux5408ux540eux66f4ux56f0ux96be}
+
+对抗型老虎机使用
+
+\[
+\widehat\ell_{t,i}
+=\frac{\ell_{t,i}\mathbf1_{\{A_t=i\}}}{p_{t,i}}.
+\]
+
+当损失 \(\ell_{t,i}\) 本身可能是重尾极端值，同时选择概率 \(p_{t,i}\)
+很小时，商
+
+\[
+\frac{\ell_{t,i}}{p_{t,i}}
+\]
+
+可能异常巨大。因此需要自适应
+clipping/skipping、概率正则化和学习率调度共同控制估计量。
+
+
+\input{uniinf_chapter_details.tex}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{第九章
+可重复实验规范}\label{ux7b2cux4e5dux7ae0-ux53efux91cdux590dux5b9eux9a8cux89c4ux8303}
+
+理论学习应当与实验互相验证。一个基本实验至少记录：
+
+\[
+\texttt{seed, t, action, reward, instant\_pseudo\_regret}.
+\]
+
+\subsection{9.1 随机种子}\label{ux968fux673aux79cdux5b50}
+
+固定 seed
+并不是让每次调用随机函数都返回同一个数，而是固定整条伪随机序列。相同程序、参数和
+seed 应产生相同结果。
+
+环境 seed 与策略 seed 应分开：
+
+\begin{itemize}
+\tightlist
+\item
+  环境 seed 控制奖励序列；
+\item
+  策略 seed 控制随机探索和选臂。
+\end{itemize}
+
+这样才能区分``环境碰巧不同''和``策略自身随机性不同''。
+
+\subsection{9.2
+最低验收标准}\label{ux6700ux4f4eux9a8cux6536ux6807ux51c6}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  一条命令能够从头运行并生成原始CSV；
+\item
+  相同seed重复运行结果一致；
+\item
+  参数、时间范围和seed都能追溯；
+\item
+  累积pseudo-regret非负；
+\item
+  不只保存最终图片，也保存原始记录；
+\item
+  比较算法时使用相同环境seed集合。
+\end{enumerate}
+
+\subsection{9.3
+推荐实验顺序}\label{ux63a8ux8350ux5b9eux9a8cux987aux5e8f}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  Gaussian环境比较Random、Greedy和\(\epsilon\)-greedy；
+\item
+  比较ETC与UCB在不同gap下的表现；
+\item
+  构造对抗奖励序列比较EXP3与随机策略；
+\item
+  构造重尾奖励，比较普通均值、截断均值与Median-of-Means；
+\item
+  将稳健估计器放入UCB，观察不同 \(\epsilon\) 下遗憾曲线的变化。
+\end{enumerate}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\end{document}

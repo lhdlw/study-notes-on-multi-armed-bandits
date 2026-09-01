@@ -1,0 +1,355 @@
+\clearpage
+\subsection{8.6 阅读定位、原文与符号约定}
+
+本节起为补充的 uniINF 研读内容。依据：Yu Chen、Jiatai Huang、Yan Dai、Longbo Huang，\emph{uniINF: Best-of-Both-Worlds Algorithm for Parameter-Free Heavy-Tailed MABs}，ICLR 2025；使用所提供的 arXiv:2410.03284v2（2025-02-25，共 37 页）版本。原文链接：\url{https://arxiv.org/abs/2410.03284v2}。
+
+\textbf{截至目前的学习状态。}
+\begin{itemize}
+\item \textbf{能够独立说明并完成基础推导：}重尾矩条件、损失版伪遗憾、重要性加权的条件无偏性、FTRL 的基本定义、负熵产生指数权重、log-barrier 的梯度与 KKT 方程、尾部一阶矩和截断二阶矩界，以及随机环境中的 self-bounding 基础关系。
+\item \textbf{已经理解算法结构，但仍需通过复述和手算巩固：}uniINF 中 FTRL、skipping、clipping 和自适应尺度的分工，parameter-free 与 Best-of-Both-Worlds 的含义，以及主定理对 $K,T,\alpha,\sigma,\Delta_{\min}$ 的依赖。
+\item \textbf{仍在研读：}概率乘法稳定性的完整证明、精细 Bregman 散度界、$\Psi$-shifting 全部细节、skipping 误差的停止时刻分析，以及附录中的完整主定理证明。
+\end{itemize}
+
+\textbf{阅读顺序。}先读原文第 4 页 Section 3，再读第 5 页 Algorithm 1 和第 5--6 页 Section 4；之后看第 7 页 Theorem 3、第 7--11 页证明框架。附录 C--F 留作第二轮精读。
+
+\begin{itemize}
+\item 原文用 $i_t$ 表示所选臂，本笔记统一改用 $A_t$；原文概率向量 $x_t$ 对应前文的 $p_t$，下文沿用 $x_t$ 方便对照。
+\item 改用\textbf{损失最小化}：$\ell_{t,i}$ 越小越好。随机环境中 $\mu_i=\mathbb E[\ell_{t,i}]$，$\Delta_i=\mu_i-\mu_{i^*}$；注意与奖励最大化时 gap 的方向相反。
+\item $\mathcal F_{t-1}$ 表示第 $t$ 轮行动前的历史信息。$x_t,S_t,C_{t,i}$ 是由历史决定的随机量，但给定 $\mathcal F_{t-1}$ 后可视为已知。
+\item $A_t,\ell_{t,i},N_i(T)$ 是随机变量。固定环境下的 $\mu_i,\Delta_i$ 及下述已取期望的 $R_T$ 是确定量。实际累计损失差不等于其期望。
+\end{itemize}
+
+\subsection{8.7 设定：}
+
+\subsubsection{定义 8.1（重尾损失模型与伪遗憾）}
+每轮先根据历史选取概率向量 $x_t\in\Delta_K$，再抽样 $A_t\sim x_t$，只观察 $\ell_{t,A_t}$。其中
+\[
+\Delta_K=\{x\in\mathbb R^K:x_i\ge0,\ \sum_i x_i=1\},\qquad
+R_T=\max_{i\in[K]}\mathbb E\!\left[\sum_{t=1}^T(\ell_{t,A_t}-\ell_{t,i})\right].
+\]
+这里的比较对象是一个\textbf{固定臂}，不是每轮事后选出的最好臂；$\max_i\mathbb E[\cdot]$ 也不能随意换成 $\mathbb E[\max_i\cdot]$。
+
+原文假定存在未知的 $\alpha\in(1,2]$ 和 $\sigma\ge0$，使所有轮次与臂均满足
+\[
+\mathbb E|\ell_{t,i}|^\alpha\le\sigma^\alpha.
+\]
+这与前文 $1+\epsilon$ 阶矩的记号对应为 $\alpha=1+\epsilon$。$\alpha=2$ 给出有限二阶原始矩，不代表次高斯；$1<\alpha<2$ 则\emph{允许}方差不存在，但不强制方差无穷。
+
+随机环境的分布不随时间变化；原文对抗环境允许分布随 $t,i$ 变化，但不依赖学习者之前的行动，即 oblivious adversary。不能把论文结论直接推广到看见当前行动后才定损失的对手。
+
+\subsubsection{假设 8.1（最优臂的截断非负性，原文 Assumption 1）}
+存在最优臂 $i^*$，对每个 $t$ 和所有 $M\ge0$，有
+\[
+\mathbb E[\ell_{t,i^*}\mathbf1_{\{|\ell_{t,i^*}|>M\}}]\ge0.
+\]
+它限制的是最优臂尾部的\textbf{带符号期望}，不是要求每次损失非负，也不是要求每个臂都非负。例如，非负随机变量一定满足；可积且关于零对称的随机变量也满足，因为两侧尾部贡献抵消。仅知道 $\mathbb EX\ge0$ 不够，见习题。
+
+\textbf{随机情形的额外假设（原文 Assumption 2）。}最优臂唯一，即
+\[
+\Delta_{\min}=\min_{i\ne i^*}\Delta_i>0.
+\]
+因此，“Parameter-Free”指算法不需要输入 $\alpha,\sigma$，不是“对任意分布都有同样保证”，也不是无需 $K,T$、初始尺度等任何设置。
+
+\subsection{8.8 从 EXP3 到 FTRL：先理解优化问题}
+
+\subsubsection{定义 8.2（FTRL）}
+令 $L_{t-1}=\sum_{s<t}\widetilde\ell_s$ 为累计估计损失。跟随正则化领导者选择
+\[
+x_t=\arg\min_{x\in\Delta_K}\{\langle L_{t-1},x\rangle+\Psi_t(x)\}.
+\]
+第一项追求过去损失小，第二项调节概率分配，避免只因短期估计就把概率压到边界。FTRL 是\textbf{框架}；换正则项、估计量或尺度调度，得到的算法及保证都会不同。UCB 依据置信上界选臂，并不是此处的 FTRL 更新。
+
+\subsubsection{命题 8.1（负熵产生指数权重）}
+固定 $\eta>0$，若 $\Psi(x)=\eta^{-1}\sum_i x_i\log x_i$，则
+\[
+x_i=\frac{\exp(-\eta L_i)}{\sum_j\exp(-\eta L_j)}.
+\]
+\textbf{证明。}对约束 $\sum_i x_i=1$ 引入乘子 $\lambda$，一阶条件为
+\[
+L_i+\eta^{-1}(1+\log x_i)+\lambda=0.
+\]
+于是 $x_i=\exp(-1-\eta\lambda)\exp(-\eta L_i)$，由归一化得到结论。目标严格凸，正的驻点即唯一最优解。证毕。
+
+这解释了 EXP3 指数权重更新与 FTRL 的联系；具体 EXP3 版本可能另有显式探索混合和不同学习率，不能把所有版本不加区分地写成同一个公式。
+
+\subsubsection{定义 8.3（uniINF 的 log-barrier）}
+uniINF 取
+\[
+\Psi_t(x)=-S_t\sum_{i=1}^K\log x_i,\qquad S_1=4.
+\]
+定义域是单纯形内部 $\Delta_K^\circ=\{x_i>0,\sum_i x_i=1\}$；边界上视为 $+\infty$。其梯度与 Hessian 为
+\[
+(\nabla\Psi_t(x))_i=-S_t/x_i,\qquad
+\nabla^2\Psi_t(x)=S_t\operatorname{diag}(x_i^{-2})\succ0.
+\]
+当某个 $x_i\downarrow0$ 时惩罚趋于无穷，因此每个臂概率保持正值；这\textbf{不等于}存在一个与时间无关的统一正下界。
+
+\subsubsection{命题 8.2（KKT 方程化为一维求根）}
+固定有限向量 $L$ 与 $S>0$，最优解满足
+\[
+x_i=\frac{S}{L_i+\lambda},\qquad
+\sum_{i=1}^K\frac{S}{L_i+\lambda}=1,\qquad \lambda>-\min_i L_i.
+\]
+\textbf{证明。}目标严格凸且在边界发散，故存在唯一内部最优解。一阶条件 $L_i-S/x_i+\lambda=0$ 给出上述形式。设 $g(\lambda)=\sum_iS/(L_i+\lambda)$，则
+\[
+g'(\lambda)=-\sum_i\frac{S}{(L_i+\lambda)^2}<0.
+\]
+在左端 $g\to+\infty$，在 $\lambda\to+\infty$ 时 $g\to0$。由连续性和严格单调性，$g(\lambda)=1$ 恰有一根。证毕。
+
+\textbf{解释。}原文附录写作 $x_{t,i}=S_t/(L_{t-1,i}-Z_t)$，这里只是 $\lambda=-Z_t$。若 $L_i<L_j$，则 $x_i>x_j$；但概率不是指数形式。$S_t$ 是正则化尺度，通常把 $1/S_t$ 看作有效学习率：$S_t$ 增大不表示更新更激进。
+
+\subsection{8.9 uniINF 在做什么？}
+
+下面按原文 Algorithm 1（第 5 页，公式 (2)--(4)）重写，假定 $K\ge2,T\ge2$。单臂问题本身无须探索。$T$ 是算法中的给定轮数。
+
+\begin{enumerate}
+\item 用 $L_{t-1}$ 和 $S_t$ 解上一节 FTRL 问题，得到 $x_t$。
+\item 抽样 $A_t\sim x_t$，仅观察 $\ell_{t,A_t}$。
+\item 对所选臂计算阈值 $C_{t,A_t}=S_t/[4(1-x_{t,A_t})]$。理论上对每个臂定义
+\[
+C_{t,i}=\frac{S_t}{4(1-x_{t,i})},\quad
+\ell^{\rm skip}_{t,i}=\ell_{t,i}\mathbf1_{\{|\ell_{t,i}|<C_{t,i}\}},\quad
+\ell^{\rm clip}_{t,i}=\max\{-C_{t,i},\min(\ell_{t,i},C_{t,i})\}.
+\]
+\item 更新累计估计损失：
+\[
+\widetilde\ell_{t,i}=\frac{\ell^{\rm skip}_{t,i}}{x_{t,i}}\mathbf1_{\{A_t=i\}},\qquad
+L_t=L_{t-1}+\widetilde\ell_t.
+\]
+\item 用 clipped 损失更新尺度：
+\[
+\boxed{S_{t+1}^2=S_t^2+
+\frac{(\ell^{\rm clip}_{t,A_t})^2(1-x_{t,A_t})^2}{K\log T}.}
+\]
+\end{enumerate}
+
+\textbf{不能混淆的两条路径。}Skipped 损失进入累计估计 $L_t$，从而影响后续 FTRL；clipped 损失进入 $S_{t+1}$，从而改变正则化尺度和后续阈值。理论中定义了整条损失向量，不表示算法能观测所有臂的反馈。
+
+\textbf{Skipping 不会抹去真实损失。}即使本轮 $\widetilde\ell_t=0$，实际付出的仍是 $\ell_{t,A_t}$，并非零。遗憾分析必须为这部分差异付出代价。
+
+\subsubsection{例 8.1（从零状态完整手算一轮）}
+取 $K=2,T=100,S_1=4,L_0=(0,0)$。对称性给出 $x_1=(1/2,1/2)$，故 $C_{1,1}=C_{1,2}=2$。假设抽到臂 1，观察损失 $10$，则
+\[
+\ell^{\rm skip}_{1,1}=0,\quad \ell^{\rm clip}_{1,1}=2,\quad
+\widetilde\ell_1=(0,0),\quad L_1=(0,0),
+\]
+\[
+S_2=\sqrt{16+\frac{1}{2\log100}}\approx4.01355.
+\]
+下一轮仍因累计损失对称而均匀抽样，但阈值变为 $S_2/2\approx2.00677$。本轮真实损失是 $10$；尺度仍然有所增长。如果误用 skipped 损失更新尺度，则 $S_2=4$，反复遇到大损失时可能一直停在原阈值。
+
+\subsubsection{命题 8.3（发生 skipping 时，尺度仍按比例增长）}
+如果 $|\ell_{t,A_t}|\ge C_{t,A_t}$，则
+\[
+S_{t+1}=S_t\sqrt{1+\frac{1}{16K\log T}}.
+\]
+\textbf{证明。}这时 $(\ell^{\rm clip}_{t,A_t})^2=C_{t,A_t}^2$，代入阈值可得
+$C_{t,A_t}^2(1-x_{t,A_t})^2=S_t^2/16$，再代入尺度更新即可。证毕。
+
+\subsection{8.10 偏差从哪里来，有限矩如何控制它？}
+
+\subsubsection{命题 8.4（重要性加权的条件无偏性）}
+在原文环境设定下，给定 $\mathcal F_{t-1}$ 和当轮损失向量 $\ell_t$，抽样概率为 $x_t$，因此
+\[
+\mathbb E[\widetilde\ell_{t,i}\mid\mathcal F_{t-1},\ell_t]
+=\frac{\ell^{\rm skip}_{t,i}}{x_{t,i}}\mathbb P(A_t=i\mid\mathcal F_{t-1},\ell_t)
+=\ell^{\rm skip}_{t,i}.
+\]
+再取条件期望，得到
+$\mathbb E[\widetilde\ell_{t,i}\mid\mathcal F_{t-1}]=\mathbb E[\ell^{\rm skip}_{t,i}\mid\mathcal F_{t-1}]$。证毕。
+
+它对\textbf{skipped 损失}无偏，通常不对原损失无偏。差值为被跳过的尾部期望。
+
+\subsubsection{命题 8.5（尾部一阶矩与截断二阶矩）}
+若 $\mathbb E|X|^\alpha\le\sigma^\alpha$、$1<\alpha\le2$、$C>0$，则
+\[
+\mathbb E[|X|\mathbf1_{\{|X|\ge C\}}]\le\sigma^\alpha C^{1-\alpha},\qquad
+\mathbb E[\operatorname{Clip}(X,C)^2]\le\sigma^\alpha C^{2-\alpha}.
+\]
+\textbf{证明。}在 $|X|\ge C$ 上，$|X|\le |X|^\alpha C^{1-\alpha}$，取期望得第一式。第二式用逐点不等式
+\[
+\min(|X|,C)^2\le |X|^\alpha C^{2-\alpha}.
+\]
+若 $|X|\le C$，由 $|X|^{2-\alpha}\le C^{2-\alpha}$ 得到；若 $|X|>C$，由 $C^\alpha\le|X|^\alpha$ 得到。取期望即证。证毕。
+
+第一式控制 skipping 的误差；第二式在原损失二阶矩可能无穷时，仍控制处理后估计的二阶项。阈值越大，尾部误差界越小，但二阶项的界通常越大。这是阈值设计要平衡的两种代价。
+
+\subsection{8.11 Bregman 散度：概率变化的分析工具}
+
+\subsubsection{定义 8.4 与命题 8.6（非负性和具体形式）}
+对可微凸函数 $\Psi$，定义
+\[
+D_\Psi(u,v)=\Psi(u)-\Psi(v)-\langle\nabla\Psi(v),u-v\rangle.
+\]
+凸函数的一阶支撑不等式直接给出 $D_\Psi(u,v)\ge0$。它一般不对称，也未必满足三角不等式，不能当成通常的距离。
+
+对 $\Psi(x)=-S\sum_i\log x_i$，逐项代入可得
+\[
+D_\Psi(u,v)=S\sum_i\left[-\log\frac{u_i}{v_i}+\frac{u_i}{v_i}-1\right].
+\]
+单项非负也可由 $\log q\le q-1$（$q>0$）直接验证。
+
+原文分析中的 $z_t$ 是加入当轮估计后、\textbf{仍保持尺度 $S_t$} 的最优解：
+\[
+z_t=\arg\min_z\{\langle L_t,z\rangle+\Psi_t(z)\}.
+\]
+真正的 $x_{t+1}$ 使用 $S_{t+1}$，所以一般 $z_t\ne x_{t+1}$。令 $\mathrm{DIV}_t=D_{\Psi_t}(x_t,z_t)$。
+
+\subsubsection{论文技术引用}
+原文 Lemmas 4--5 建立概率的乘法稳定性，并给出如下关键量级：
+\[
+\frac{x_{t,i}}2\le z_{t,i}\le2x_{t,i},\qquad
+\mathrm{DIV}_t\lesssim S_t^{-1}(\ell^{\rm skip}_{t,A_t})^2(1-x_{t,A_t})^2.
+\]
+
+\textbf{一个应自行核查的小步骤。}由 $x_i/2\le z_i\le2x_i$，只能推出 $w_i=x_i/z_i-1\in[-1/2,1]$：
+\[
+w-\log(1+w)\le w^2,\qquad w\ge-1/2.
+\]
+证明：设 $h(w)=w^2-w+\log(1+w)$，则
+$h'(w)=w(1+2w)/(1+w)$。在 $[-1/2,0]$ 上 $h'\le0$，在 $[0,\infty)$ 上 $h'\ge0$，故 $h(w)\ge h(0)=0$。
+
+\subsection{8.12 为什么随机环境能得到更小的遗憾？}
+
+\subsubsection{命题 8.7（self-bounding 的基础关系）}
+在随机环境下，
+\[
+R_T=\sum_{t=1}^T\sum_{i\ne i^*}\Delta_i\mathbb E[x_{t,i}]
+\ge\Delta_{\min}\sum_{t=1}^T\mathbb E[1-x_{t,i^*}].
+\]
+\textbf{证明。}给定历史，当轮平均损失差为 $\sum_i x_{t,i}(\mu_i-\mu_{i^*})$。取期望并求和得等式；再用 $\Delta_i\ge\Delta_{\min}$ 及 $\sum_{i\ne i^*}x_{t,i}=1-x_{t,i^*}$ 得不等式。证毕。
+
+\subsubsection{从二阶项到最优臂的剩余概率}
+把命题 8.5 与阈值代入技术引理，可得某常数 $c_0>0$ 下
+\begin{align*}
+\mathbb E[\mathrm{DIV}_t\mid\mathcal F_{t-1}]
+&\le c_0S_t^{-1}\sum_i x_{t,i}\sigma^\alpha C_{t,i}^{2-\alpha}(1-x_{t,i})^2\\
+&=c_0 4^{\alpha-2}\sigma^\alpha S_t^{1-\alpha}\sum_i x_{t,i}(1-x_{t,i})^\alpha\\
+&\le 2c_0\sigma^\alpha S_t^{1-\alpha}(1-x_{t,i^*}).
+\end{align*}
+最后一步因为非最优臂的和不超过 $1-x_{t,i^*}$；最优臂项也不超过 $1-x_{t,i^*}$。于是技术引理中的 $(1-x)^2$ 最终连接到 self-bounding 关系，而非仅仅表示“多探索”。
+
+\subsubsection{停止阈值与遗憾吸收（证明思路）}
+将上式常数合并为 $c$。希望当 $S_t\ge M$ 时有 $c\sigma^\alpha S_t^{1-\alpha}\le\Delta_{\min}/4$，只需
+\[
+M\ge\left(\frac{4c\sigma^\alpha}{\Delta_{\min}}\right)^{1/(\alpha-1)}.
+\]
+由于 $1-\alpha<0$，$S_t$ 越大，这个上界越小。令
+\[
+\tau=\min\bigl(\{t\in\{1,\ldots,T\}:S_t\ge M\}\cup\{T+1\}\bigr).
+\]
+达到阈值与否由已有信息确定，因此能把求和按 $t<\tau$ 和 $t\ge\tau$ 划分；这不是随意套用“可选停止定理”。前段利用累计尺度界控制，后段利用 self-bounding 吸收进 $R_T/4$。
+
+\textbf{重要：}$M$ 依赖未知参数，但只用于\emph{证明}，不是算法输入。分析者知道如何选择 $M$，并不意味着学习者需要知道它。
+
+\subsection{8.13 遗憾分解与主结果应该怎样读}
+
+\subsubsection{三项分解：先做代数，再使用假设}
+令 $y=e_{i^*}$。log-barrier 在边界 $y$ 上为无穷，分析时需要内部比较点。为避免短轮数的边界问题，本节取
+$\bar y=(1-1/T)y+(1/T)\mathbf1/K$（$T>1$）。原文采用另一种 $1/T$ 级别的平滑，思想相同。恒等式为
+\begin{align*}
+\langle x_t-y,\ell_t\rangle
+={}&\langle\bar y-y,\ell_t^{\rm skip}\rangle
++\langle x_t-\bar y,\ell_t^{\rm skip}\rangle\\
+&+\langle x_t-y,\ell_t-\ell_t^{\rm skip}\rangle.
+\end{align*}
+三项分别是比较点平滑误差、FTRL 主遗憾、skipping 误差。由 $\mathbb E|\ell_{t,i}|\le\sigma$，本节平滑点的累计误差绝对值不超过 $2\sigma$；原文平滑方式得到 $O(\sigma K)$ 级别项。
+
+\textbf{截断非负性在哪里使用？}令 $d_{t,i}=\ell_{t,i}-\ell^{\rm skip}_{t,i}$。给定历史，最优臂项为
+\[
+(x_{t,i^*}-1)\mathbb E[d_{t,i^*}\mid\mathcal F_{t-1}]\le0,
+\]
+因为第一个因子非正，第二个由假设非负。因此 skipping 误差可以只上界为非最优臂尾部误差的和。这是\emph{条件期望}中的结论，不是每次实现值都满足。原文假设写 $>M$、算法使用 $\ge C$，对可积变量可由 $M\uparrow C$ 与支配收敛衔接。
+
+FTRL 主遗憾进一步分成 $\mathrm{DIV}_t$ 与尺度变化引起的 $\mathrm{SHIFT}_t$。原文分别控制这两项和非最优臂 skipping 项；随机情形中三项可各贡献至多 $R_T/4$ 加一个可控余项。合起来若
+\[
+R_T\le B+\frac34R_T,
+\]
+移项便得到 $R_T\le4B$。真正困难在于逐项证明余项界，而不在最后移项。
+
+\subsubsection{原文 Theorem 3：主导依赖关系}
+在原文设定和 Assumption 1 下，对抗情形的主导量级为
+\[
+R_T=\widetilde O\bigl(\sigma K^{1-1/\alpha}T^{1/\alpha}\bigr).
+\]
+随机情形再加入 Assumption 2，其定理展示的主导关系为
+\[
+R_T=O\!\left(K\left(\frac{\sigma^\alpha}{\Delta_{\min}}\right)^{1/(\alpha-1)}
+\log T\cdot\log\frac{\sigma^\alpha}{\Delta_{\min}}\right).
+\]
+\textbf{使用范围。}以上是原文的渐近量级表述，不作为对任意尺度都直接代入的非负数值上界。尤其当 $\sigma^\alpha/\Delta_{\min}\le1$ 时，不能将最后一个裸对数按负数使用；分析需保留初始尺度、常数项和适当正部对数。固定 $\alpha$ 时隐藏的常数也可能随 $\alpha\downarrow1$ 恶化。本笔记不声称修订了原文的全参数有限样本定理。
+
+\begin{itemize}
+\item $\alpha=2$：对抗主导项是 $\widetilde O(\sigma\sqrt{KT})$；随机项对 gap 的主要依赖是 $\sigma^2/\Delta_{\min}$。
+\item $\alpha=3/2$：对抗主导项为 $\widetilde O(\sigma K^{1/3}T^{2/3})$；随机项的 gap 幂次变为 $\Delta_{\min}^{-2}$。
+\item 固定参数时随机项对 $T$ 为对数量级；这来自同一个算法的环境适应性，而不是先知道环境类型再切换 UCB/EXP3。
+\item uniINF 的随机界使用 $K$ 与 $\Delta_{\min}$，不能直接写成经典下界中的逐臂求和
+\[
+\sum_{i\ne i^*}(\sigma^\alpha/\Delta_i)^{1/(\alpha-1)}\log T.
+\]
+当各 gap 差异很大时，两者可能相差较多；原文 Table 1 与结论也讨论了这一局限。
+\end{itemize}
+
+\iffalse
+\begin{enumerate}
+\item 设 $X$ 以概率 $0.9$ 取 $1$、以概率 $0.1$ 取 $-5$。求 $\mathbb EX$，并判断它是否满足截断非负性。
+\item 对 $L=(0,0),S=4,K=2$，求 log-barrier FTRL 的 $\lambda$ 与 $x$。若改为 $L_1<L_2$，哪个臂概率更大？
+\item 取 $S_t=4,x_t=(0.8,0.2),K=2,T=100$。抽到臂 2 并观察损失 $10$，求阈值、skip、clip、估计向量和 $S_{t+1}$。若损失为 $-10$ 呢？
+\item 在题 3 的状态下，若臂 2 的当轮损失恒为 $1$，证明其重要性加权估计的条件期望为 $1$。
+\item 推导 $\Psi(x)=-S\sum_i\log x_i$ 的 Hessian，并解释“每个概率为正”是否意味着“每个概率至少为 $0.01$”。
+\item 若 $\alpha=3/2$，将 $\sigma^\alpha M^{1-\alpha}\le\Delta_{\min}/4$ 解成对 $M$ 的要求；说明这个 $M$ 是否破坏 parameter-free。
+\item 若 $R_T\le B+3R_T/4$，求 $R_T$ 的上界。说明仅写出这个式子是否等于证明主定理。
+\item 不看公式，用四句话解释 uniINF 一轮的两条损失处理路径，并指出真实损失是否会因为 skipping 而消失。
+\end{enumerate}
+
+\subsection{8.15 习题解答与下一步精读}
+\begin{enumerate}
+\item $\mathbb EX=0.4>0$；取 $M=2$，有 $\mathbb E[X\mathbf1_{\{|X|>2\}}]=-0.5<0$。因此不满足。均值非负不足以控制每个截断阈值下的尾部。
+\item $8/\lambda=1$，所以 $\lambda=8$、$x=(1/2,1/2)$。若 $L_1<L_2$，同一 $\lambda$ 下 $S/(L_1+\lambda)>S/(L_2+\lambda)$。
+\item $C_{t,2}=4/(4\times0.8)=1.25$；skip 为 $0$，clip 为 $1.25$，估计向量为 $(0,0)$。尺度满足
+\[
+S_{t+1}=\sqrt{16+\frac{1.25^2\times0.8^2}{2\log100}}
+=\sqrt{16+\frac1{2\log100}}\approx4.01355.
+\]
+若损失是 $-10$，clip 为 $-1.25$、skip 仍为零、尺度相同；真实损失的符号则不同。$x_t$ 是给定中间状态，不声称它来自 $L_0=0$。
+\item 因 $1<1.25$，未被 skip。以 $0.2$ 概率得到估计 $1/0.2=5$，以 $0.8$ 概率得到 $0$，故均值 $0.2\times5=1$。未选臂的零是估计值，不是观察到其真实损失为零。
+\item Hessian 为 $S\operatorname{diag}(x_i^{-2})$；正定支持严格凸性。每个概率为正不提供题目所述统一下界。
+\item $\sigma^{3/2}/\sqrt M\le\Delta_{\min}/4$，所以 $M\ge16\sigma^3/\Delta_{\min}^2$。它只在证明中划分轮次，不传入算法，不破坏 parameter-free。
+\item $R_T\le4B$。还必须证明三类误差都能被相应余项加 $R_T/4$ 控制，且说明假设的使用位置。
+\item 先用累计估计损失和 log-barrier 求概率，再抽臂并观察损失；skip 后的重要性加权值进入累计损失；clip 后的平方值更新尺度；被 skip 的真实损失仍存在，因此需要分析 skipping 误差。
+\end{enumerate}
+
+\fi
+\subsection{8.14 关键疑问与解答}
+
+\textbf{疑问一：uniINF 为什么既要 skipping，又要 clipping，使用一种处理方式不够吗？}
+
+\textbf{解答：}两者服务于不同的分析路径。Skipping 把超过阈值的损失从重要性加权估计中移除，避免极端观测直接以 $1/x_{t,i}$ 放大后破坏 FTRL 稳定性；clipping 保留极端观测达到阈值这一信息，用来更新尺度 $S_t$。若尺度也使用 skipped 损失，大损失被置零后阈值可能长期不增长；若累计损失直接使用 clipped 值，又会改变论文需要控制的估计误差结构。
+
+\textbf{疑问二：skipping 使估计产生偏差，为什么算法仍可能取得遗憾保证？}
+
+\textbf{解答：}分析并不假装偏差消失，而是把遗憾分成 FTRL 主项、尺度变化项和 skipping 误差。有限 $\alpha$ 阶矩给出尾部一阶矩界 $\sigma^\alpha C^{1-\alpha}$，阈值随尺度增长后，跳过部分的期望代价会下降。随机环境中，最优臂的截断非负性进一步使最优臂尾部项具有有利符号，从而只需控制非最优臂的尾部代价。
+
+\textbf{疑问三：log-barrier 保证每个臂的概率为正，为什么还需要研究概率的乘法稳定性？}
+
+\textbf{解答：}“概率为正”只排除了恰好为零，并不能阻止概率在相邻两轮间从很小变得更小，或在重要性加权后出现巨大变化。乘法稳定性比较加入一次估计前后的两个 FTRL 解，控制 $z_{t,i}/x_{t,i}$ 的比例；只有这种局部控制，才能把 Bregman 散度压到与 $(1-x_{t,A_t})^2$ 和处理后损失平方相关的量级。
+
+\textbf{疑问四：论文为什么能用同一个算法同时得到对抗环境和随机环境的遗憾界？}
+
+\textbf{解答：}对抗界主要依靠 FTRL 稳定性、有限矩尾界和自适应尺度，不使用固定 gap。随机环境额外提供 self-bounding 关系：探索非最优臂的概率总量可以由遗憾除以 $\Delta_{\min}$ 控制。证明在尺度足够大后把若干误差项吸收到遗憾自身，因此从同一套更新中得到 gap-dependent 对数界。环境适应发生在分析中，而不是算法先判断环境类型再切换策略。
+
+\textbf{疑问五：“parameter-free”究竟表示什么，为什么证明里仍然会出现 $\alpha$、$\sigma$ 和 $\Delta_{\min}$？}
+
+\textbf{解答：}它表示算法运行时不需要把未知的重尾阶数和矩尺度作为输入。性能上界当然仍由真实环境难度决定，所以这些参数会出现在定理和证明选择的阈值 $M$ 中。证明者用未知参数划分情况，不等于学习者在运行算法时知道这些参数；同时，parameter-free 也不表示算法不需要 $K$、时间范围或初始尺度等任何设置。
+
+\subsection{8.15 下一步精读}
+
+\textbf{建议独立完成的核验}
+\begin{itemize}
+\item 不看笔记推导命题 8.2、8.4、8.5 和 8.7，并独立手算一轮包含极端损失的 uniINF 更新。
+\item 对照原文第 5 页逐行解释 Algorithm 1，区分输入、可观察量、分析中才定义的量。
+\item 精读附录 C.1--C.3：证明概率乘法稳定性，检查隐式求导和 $(1-x)^2$ 的出现过程。
+\item 精读附录 E 与 F：补齐 skipping 误差的停止阈值论证，以及完整 FTRL 分解。
+\end{itemize}
+
+\textbf{可进一步思考的问题（问题，不是已有成果）。}最优臂的截断非负条件在哪些数据中合理？若只做均值平移，尾部条件会怎样变化？能否改善对 $\Delta_{\min}$ 的依赖？在模拟实验中，如何同时记录 skip 比例、尺度 $S_t$、最优臂概率与遗憾，检查理论机制是否出现？这些问题可以作为后续与导师讨论的起点，但不应预先写成已完成的研究贡献。
